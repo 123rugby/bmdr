@@ -5,7 +5,7 @@ function state = bmdr_supervised_multiclass_classification_variational_train(X, 
     randn('state', parameters.seed); %#ok<RAND>
 
     R = parameters.R;
-    sigmaz = parameters.sigmaz;
+    sigma_z = parameters.sigma_z;
 
     log2pi = log(2 * pi);
 
@@ -22,29 +22,29 @@ function state = bmdr_supervised_multiclass_classification_variational_train(X, 
     Q = cell(1, V);
     Z = cell(1, V);
     for o = 1:V
-        Phi{o}.shape = (parameters.alpha_phi + 0.5) * ones(D(o), R);
-        Phi{o}.scale = parameters.beta_phi * ones(D(o), R);
-        Q{o}.mean = randn(D(o), R);
-        Q{o}.covariance = repmat(eye(D(o), D(o)), [1, 1, R]);
-        Z{o}.mean = randn(R, N(o));
-        Z{o}.covariance = eye(R, R);
+        Phi{o}.alpha = (parameters.alpha_phi + 0.5) * ones(D(o), R);
+        Phi{o}.beta = parameters.beta_phi * ones(D(o), R);
+        Q{o}.mu = randn(D(o), R);
+        Q{o}.sigma = repmat(eye(D(o), D(o)), [1, 1, R]);
+        Z{o}.mu = randn(R, N(o));
+        Z{o}.sigma = eye(R, R);
     end
-    lambda.shape = (parameters.alpha_lambda + 0.5) * ones(K, 1);
-    lambda.scale = parameters.beta_lambda * ones(K, 1);
-    Psi.shape = (parameters.alpha_psi + 0.5) * ones(R, K);
-    Psi.scale = parameters.beta_psi * ones(R, K);
-    bW.mean = randn(R + 1, K);
-    bW.covariance = repmat(eye(R + 1, R + 1), [1, 1, K]);
+    lambda.alpha = (parameters.alpha_lambda + 0.5) * ones(K, 1);
+    lambda.beta = parameters.beta_lambda * ones(K, 1);
+    Psi.alpha = (parameters.alpha_psi + 0.5) * ones(R, K);
+    Psi.beta = parameters.beta_psi * ones(R, K);
+    bW.mu = randn(R + 1, K);
+    bW.sigma = repmat(eye(R + 1, R + 1), [1, 1, K]);
     T = cell(1, V);
     for o = 1:V
-        T{o}.mean = zeros(K, N(o));
-        T{o}.covariance = eye(K, K);
+        T{o}.mu = zeros(K, N(o));
+        T{o}.sigma = eye(K, K);
     end
     for o = 1:V
         for i = 1:N(o)
             while 1
-                T{o}.mean(:, i) = randn(K, 1);
-                if T{o}.mean(y{o}(i), i) == max(T{o}.mean(:, i))
+                T{o}.mu(:, i) = randn(K, 1);
+                if T{o}.mu(y{o}(i), i) == max(T{o}.mu(:, i))
                     break;
                 end
             end
@@ -77,102 +77,102 @@ function state = bmdr_supervised_multiclass_classification_variational_train(X, 
 
         %%%% update Phi
         for o = 1:V
-            Phi{o}.scale = 1 ./ (1 / parameters.beta_phi + 0.5 * (Q{o}.mean.^2 + reshape(Q{o}.covariance(phi_indices{o}), D(o), R)));
+            Phi{o}.beta = 1 ./ (1 / parameters.beta_phi + 0.5 * (Q{o}.mu.^2 + reshape(Q{o}.sigma(phi_indices{o}), D(o), R)));
         end
         %%%% update Q
         for o = 1:V
             for s = 1:R
-                Q{o}.covariance(:, :, s) = (diag(Phi{o}.shape(:, s) .* Phi{o}.scale(:, s)) + XXT{o} / sigmaz^2) \ eye(D(o), D(o));
-                Q{o}.mean(:, s) = Q{o}.covariance(:, :, s) * (X{o} * Z{o}.mean(s, :)' / sigmaz^2);
+                Q{o}.sigma(:, :, s) = (diag(Phi{o}.alpha(:, s) .* Phi{o}.beta(:, s)) + XXT{o} / sigma_z^2) \ eye(D(o), D(o));
+                Q{o}.mu(:, s) = Q{o}.sigma(:, :, s) * (X{o} * Z{o}.mu(s, :)' / sigma_z^2);
             end
         end
         %%%% update Z
         for o = 1:V
-            Z{o}.covariance = eye(R, R) / sigmaz^2;
-            Z{o}.covariance = Z{o}.covariance + bW.mean(2:R + 1, :) * bW.mean(2:R + 1, :)' + sum(bW.covariance(2:R + 1, 2:R + 1, :), 3);
-            Z{o}.covariance = Z{o}.covariance \ eye(R, R);
-            Z{o}.mean = Q{o}.mean' * X{o} / sigmaz^2;
-            Z{o}.mean = Z{o}.mean + bW.mean(2:end, :) * T{o}.mean - repmat(bW.mean(2:R + 1, :) * bW.mean(1, :)' + sum(bW.covariance(1, 2:R + 1, :), 3)', 1, N(o));
-            Z{o}.mean = Z{o}.covariance * Z{o}.mean;
+            Z{o}.sigma = eye(R, R) / sigma_z^2;
+            Z{o}.sigma = Z{o}.sigma + bW.mu(2:R + 1, :) * bW.mu(2:R + 1, :)' + sum(bW.sigma(2:R + 1, 2:R + 1, :), 3);
+            Z{o}.sigma = Z{o}.sigma \ eye(R, R);
+            Z{o}.mu = Q{o}.mu' * X{o} / sigma_z^2;
+            Z{o}.mu = Z{o}.mu + bW.mu(2:end, :) * T{o}.mu - repmat(bW.mu(2:R + 1, :) * bW.mu(1, :)' + sum(bW.sigma(1, 2:R + 1, :), 3)', 1, N(o));
+            Z{o}.mu = Z{o}.sigma * Z{o}.mu;
         end
         %%%% update lambda
-        lambda.scale = 1 ./ (1 / parameters.beta_lambda + 0.5 * (bW.mean(1, :)'.^2 + squeeze(bW.covariance(1, 1, :))));
+        lambda.beta = 1 ./ (1 / parameters.beta_lambda + 0.5 * (bW.mu(1, :)'.^2 + squeeze(bW.sigma(1, 1, :))));
         %%%% update Psi
-        Psi.scale = 1 ./ (1 / parameters.beta_psi + 0.5 * (bW.mean(2:R + 1, :).^2 + reshape(bW.covariance(psi_indices), R, K)));
+        Psi.beta = 1 ./ (1 / parameters.beta_psi + 0.5 * (bW.mu(2:R + 1, :).^2 + reshape(bW.sigma(psi_indices), R, K)));
         %%%% update b and W
         Z1 = zeros(R, 1);
         ZZT = zeros(R, R);
         Zt = zeros(R + 1, K);
         for o = 1:V
-            Z1 = Z1 + Z{o}.mean * ones(N(o), 1);
-            ZZT = ZZT + Z{o}.mean * Z{o}.mean' + N(o) * Z{o}.covariance;
-            Zt = Zt + [ones(1, N(o)); Z{o}.mean] * T{o}.mean';
+            Z1 = Z1 + Z{o}.mu * ones(N(o), 1);
+            ZZT = ZZT + Z{o}.mu * Z{o}.mu' + N(o) * Z{o}.sigma;
+            Zt = Zt + [ones(1, N(o)); Z{o}.mu] * T{o}.mu';
         end
         for c = 1:K
-            bW.covariance(:, :, c) = [lambda.shape(c, 1) * lambda.scale(c, 1) + sum(N), Z1'; Z1, diag(Psi.shape(:, c) .* Psi.scale(:, c)) + ZZT] \ eye(R + 1, R + 1);
-            bW.mean(:, c) = bW.covariance(:, :, c) * Zt(:, c);
+            bW.sigma(:, :, c) = [lambda.alpha(c, 1) * lambda.beta(c, 1) + sum(N), Z1'; Z1, diag(Psi.alpha(:, c) .* Psi.beta(:, c)) + ZZT] \ eye(R + 1, R + 1);
+            bW.mu(:, c) = bW.sigma(:, :, c) * Zt(:, c);
         end
         %%%% update T
         for o = 1:V
-            T{o}.mean = bW.mean(2:R + 1, :)' * Z{o}.mean + repmat(bW.mean(1, :)', 1, N(o));
+            T{o}.mu = bW.mu(2:R + 1, :)' * Z{o}.mu + repmat(bW.mu(1, :)', 1, N(o));
             for c = 1:K
                 pos = find(y{o} == c);
-                [normalization{o}(pos, 1), T{o}.mean(:, pos)] = truncated_normal_mean(T{o}.mean(:, pos), c, parameters.sample, 0);
+                [normalization{o}(pos, 1), T{o}.mu(:, pos)] = truncated_normal_mean(T{o}.mu(:, pos), c, parameters.sample, 0);
             end
         end
 
         lb = 0;
         %%%% p(Phi)
         for o = 1:V
-            lb = lb + sum(sum((parameters.alpha_phi - 1) * (psi(Phi{o}.shape) + log(Phi{o}.scale)) - Phi{o}.shape .* Phi{o}.scale / parameters.beta_phi - gammaln(parameters.alpha_phi) - parameters.alpha_phi * log(parameters.beta_phi)));
+            lb = lb + sum(sum((parameters.alpha_phi - 1) * (psi(Phi{o}.alpha) + log(Phi{o}.beta)) - Phi{o}.alpha .* Phi{o}.beta / parameters.beta_phi - gammaln(parameters.alpha_phi) - parameters.alpha_phi * log(parameters.beta_phi)));
         end
         %%%% p(Q | Phi)
         for o = 1:V
             for s = 1:R
-                lb = lb - 0.5 * Q{o}.mean(:, s)' * diag(Phi{o}.shape(:, s) .* Phi{o}.scale(:, s)) * Q{o}.mean(:, s) - 0.5 * (D(o) * log2pi - sum(log(Phi{o}.shape(:, s) .* Phi{o}.scale(:, s))));
+                lb = lb - 0.5 * Q{o}.mu(:, s)' * diag(Phi{o}.alpha(:, s) .* Phi{o}.beta(:, s)) * Q{o}.mu(:, s) - 0.5 * (D(o) * log2pi - sum(log(Phi{o}.alpha(:, s) .* Phi{o}.beta(:, s))));
             end
         end
         %%%% p(Z | Q, X)
         for o = 1:V
-            lb = lb - 0.5 * (sum(sum(Z{o}.mean .* Z{o}.mean)) + N(o) * sum(diag(Z{o}.covariance))) + sum(sum((Q{o}.mean' * X{o}) .* Z{o}.mean)) - 0.5 * sum(sum(X{o} .* ((Q{o}.mean * Q{o}.mean' + sum(Q{o}.covariance, 3)) * X{o}))) - 0.5 * N(o) * D(o) * (log2pi + 2 * log(sigmaz));
+            lb = lb - 0.5 * (sum(sum(Z{o}.mu .* Z{o}.mu)) + N(o) * sum(diag(Z{o}.sigma))) + sum(sum((Q{o}.mu' * X{o}) .* Z{o}.mu)) - 0.5 * sum(sum(X{o} .* ((Q{o}.mu * Q{o}.mu' + sum(Q{o}.sigma, 3)) * X{o}))) - 0.5 * N(o) * D(o) * (log2pi + 2 * log(sigma_z));
         end
         %%%% p(lambda)
-        lb = lb + sum((parameters.alpha_lambda - 1) * (psi(lambda.shape) + log(lambda.scale)) - lambda.shape .* lambda.scale / parameters.beta_lambda - gammaln(parameters.alpha_lambda) - parameters.alpha_lambda * log(parameters.beta_lambda));
+        lb = lb + sum((parameters.alpha_lambda - 1) * (psi(lambda.alpha) + log(lambda.beta)) - lambda.alpha .* lambda.beta / parameters.beta_lambda - gammaln(parameters.alpha_lambda) - parameters.alpha_lambda * log(parameters.beta_lambda));
         %%%% p(b | lambda)
-        lb = lb - 0.5 * bW.mean(1, :) * diag(lambda.shape(:, 1) .* lambda.scale(:, 1)) * bW.mean(1, :)' - 0.5 * (K * log2pi - sum(log(lambda.shape(:, 1) .* lambda.scale(:, 1))));
+        lb = lb - 0.5 * bW.mu(1, :) * diag(lambda.alpha(:, 1) .* lambda.beta(:, 1)) * bW.mu(1, :)' - 0.5 * (K * log2pi - sum(log(lambda.alpha(:, 1) .* lambda.beta(:, 1))));
         %%%% p(Psi)
-        lb = lb + sum(sum((parameters.alpha_psi - 1) * (psi(Psi.shape) + log(Psi.scale)) - Psi.shape .* Psi.scale / parameters.beta_psi - gammaln(parameters.alpha_psi) - parameters.alpha_psi * log(parameters.beta_psi)));
+        lb = lb + sum(sum((parameters.alpha_psi - 1) * (psi(Psi.alpha) + log(Psi.beta)) - Psi.alpha .* Psi.beta / parameters.beta_psi - gammaln(parameters.alpha_psi) - parameters.alpha_psi * log(parameters.beta_psi)));
         %%%% p(W | Psi)
         for c = 1:K
-            lb = lb - 0.5 * bW.mean(2:R + 1, c)' * diag(Psi.shape(:, c) .* Psi.scale(:, c)) * bW.mean(2:R + 1, c) - 0.5 * (R * log2pi - sum(log(Psi.shape(:, c) .* Psi.scale(:, c))));
+            lb = lb - 0.5 * bW.mu(2:R + 1, c)' * diag(Psi.alpha(:, c) .* Psi.beta(:, c)) * bW.mu(2:R + 1, c) - 0.5 * (R * log2pi - sum(log(Psi.alpha(:, c) .* Psi.beta(:, c))));
         end
         %%%% p(T | b, W, Z) p(y | T)
-        WWT.mean = bW.mean(2:R + 1, :) * bW.mean(2:R + 1, :)' + sum(bW.covariance(2:R + 1, 2:R + 1, :), 3);
+        WWT.mu = bW.mu(2:R + 1, :) * bW.mu(2:R + 1, :)' + sum(bW.sigma(2:R + 1, 2:R + 1, :), 3);
         for o = 1:V
-            lb = lb - 0.5 * (sum(sum(T{o}.mean .* T{o}.mean)) + N(o) * K) + sum(bW.mean(1, :) * T{o}.mean) + sum(sum((bW.mean(2:R + 1, :)' * Z{o}.mean) .* T{o}.mean)) - 0.5 * (N(o) * trace(WWT.mean * Z{o}.covariance) + sum(sum(Z{o}.mean .* (WWT.mean * Z{o}.mean)))) - 0.5 * N(o) * (bW.mean(1, :) * bW.mean(1, :)' + sum(bW.covariance(1, 1, :))) - sum(Z{o}.mean' * (bW.mean(2:R + 1, :) * bW.mean(1, :)' + sum(bW.covariance(2:R + 1, 1, :), 3))) - 0.5 * N(o) * K * log2pi;
+            lb = lb - 0.5 * (sum(sum(T{o}.mu .* T{o}.mu)) + N(o) * K) + sum(bW.mu(1, :) * T{o}.mu) + sum(sum((bW.mu(2:R + 1, :)' * Z{o}.mu) .* T{o}.mu)) - 0.5 * (N(o) * trace(WWT.mu * Z{o}.sigma) + sum(sum(Z{o}.mu .* (WWT.mu * Z{o}.mu)))) - 0.5 * N(o) * (bW.mu(1, :) * bW.mu(1, :)' + sum(bW.sigma(1, 1, :))) - sum(Z{o}.mu' * (bW.mu(2:R + 1, :) * bW.mu(1, :)' + sum(bW.sigma(2:R + 1, 1, :), 3))) - 0.5 * N(o) * K * log2pi;
         end
 
         %%%% q(Phi)
         for o = 1:V
-            lb = lb + sum(sum(Phi{o}.shape + log(Phi{o}.scale) + gammaln(Phi{o}.shape) + (1 - Phi{o}.shape) .* psi(Phi{o}.shape)));
+            lb = lb + sum(sum(Phi{o}.alpha + log(Phi{o}.beta) + gammaln(Phi{o}.alpha) + (1 - Phi{o}.alpha) .* psi(Phi{o}.alpha)));
         end
         %%%% q(Q)
         for o = 1:V
             for s = 1:R
-                lb = lb + 0.5 * (D(o) * (log2pi + 1) + logdet(Q{o}.covariance(:, :, s)));
+                lb = lb + 0.5 * (D(o) * (log2pi + 1) + logdet(Q{o}.sigma(:, :, s)));
             end
         end
         %%%% q(Z)
         for o = 1:V
-            lb = lb + 0.5 * N(o) * (R * (log2pi + 1) + logdet(Z{o}.covariance));
+            lb = lb + 0.5 * N(o) * (R * (log2pi + 1) + logdet(Z{o}.sigma));
         end
         %%%% q(lambda)
-        lb = lb + sum(lambda.shape + log(lambda.scale) + gammaln(lambda.shape) + (1 - lambda.shape) .* psi(lambda.shape));
+        lb = lb + sum(lambda.alpha + log(lambda.beta) + gammaln(lambda.alpha) + (1 - lambda.alpha) .* psi(lambda.alpha));
         %%%% q(Psi)
-        lb = lb + sum(sum(Psi.shape + log(Psi.scale) + gammaln(Psi.shape) + (1 - Psi.shape) .* psi(Psi.shape)));
+        lb = lb + sum(sum(Psi.alpha + log(Psi.beta) + gammaln(Psi.alpha) + (1 - Psi.alpha) .* psi(Psi.alpha)));
         %%%% q(b, W)
         for c = 1:K
-            lb = lb + 0.5 * ((R + 1) * (log2pi + 1) + logdet(bW.covariance(:, :, c))); 
+            lb = lb + 0.5 * ((R + 1) * (log2pi + 1) + logdet(bW.sigma(:, :, c))); 
         end
         %%%% q(T)
         for o = 1:V

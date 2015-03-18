@@ -35,7 +35,7 @@ parameters.sample = 200;
 parameters.seed = 1606;
 
 %set the standard deviation of projected instances
-parameters.sigmaz = 0.1;
+parameters.sigma_z = 0.1;
 
 %set the number of views
 V = ??;
