@@ -134,7 +134,7 @@ function state = bmdr_supervised_multiclass_classification_variational_train(X, 
         end
         %%%% p(Z | Q, X)
         for o = 1:V
-            lb = lb - 0.5 * (sum(sum(Z{o}.mu .* Z{o}.mu)) + N(o) * sum(diag(Z{o}.sigma))) + sum(sum((Q{o}.mu' * X{o}) .* Z{o}.mu)) - 0.5 * sum(sum(X{o} .* ((Q{o}.mu * Q{o}.mu' + sum(Q{o}.sigma, 3)) * X{o}))) - 0.5 * N(o) * D(o) * (log2pi + 2 * log(sigma_z));
+            lb = lb - 0.5 * sigma_z^-2 * (sum(sum(Z{o}.mu .* Z{o}.mu)) + N(o) * sum(diag(Z{o}.sigma))) + sigma_z^-2 * sum(sum((Q{o}.mu' * X{o}) .* Z{o}.mu)) - 0.5 * sigma_z^-2 * sum(sum(X{o} .* ((Q{o}.mu * Q{o}.mu' + sum(Q{o}.sigma, 3)) * X{o}))) - 0.5 * N(o) * D(o) * (log2pi + 2 * log(sigma_z));
         end
         %%%% p(lambda)
         lb = lb + sum((parameters.alpha_lambda - 1) * (psi(lambda.alpha) + log(lambda.beta)) - lambda.alpha .* lambda.beta / parameters.beta_lambda - gammaln(parameters.alpha_lambda) - parameters.alpha_lambda * log(parameters.beta_lambda));
