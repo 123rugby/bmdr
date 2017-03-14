@@ -1,4 +1,4 @@
-This package contains Matlab implementation of the algorithm proposed in "Bayesian Multiview Dimensionality Reduction for Learning Predictive Subspaces", which is appearing in ECAI 2014.
+This repository contains Matlab implementation of the algorithm proposed in "Bayesian Multiview Dimensionality Reduction for Learning Predictive Subspaces", which is appearing in the Proceedings of the 21st European Conference on Artificial Intelligence (ECAI 2014).
 
 demo.m file shows how to use the algorithm.
 
@@ -7,6 +7,6 @@ BMDR methods
 * bmdr_supervised_multiclass_classification_variational_train.m => training procedure
 * bmdr_supervised_multiclass_classification_variational_test.m => test procedure
 
-If you use the algorithm implemented in this package, please cite the following paper:
+If you use the algorithm implemented in this repository, please cite the following paper:
 
 Mehmet Gonen, Gulefsan Bozkurt Gonen, and Fikret Gurgen. Bayesian Multiview Dimensionality Reduction for Learning Predictive Subspaces. Proceedings of the 21st European Conference on Artificial Intelligence (ECAI 2014), Prague, Czech Republic, 2014.
