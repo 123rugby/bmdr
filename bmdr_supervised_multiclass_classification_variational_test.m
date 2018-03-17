@@ -1,5 +1,3 @@
-% Mehmet Gonen (mehmet.gonen@gmail.com)
-
 function prediction = bmdr_supervised_multiclass_classification_variational_test(X, state)
     rand('state', state.parameters.seed); %#ok<RAND>
     randn('state', state.parameters.seed); %#ok<RAND>
